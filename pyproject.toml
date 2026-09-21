@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatgpt-export-server"
+version = "0.1.0"
+description = "Self-hosted, resumable full backup of data exposed by the ChatGPT web application"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "ZTD38F"}]
+dependencies = [
+  "cryptography>=43,<48",
+  "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
+  "uvicorn[standard]>=0.30,<1",
+]
+
+[project.scripts]
+chatgpt-export-server = "chatgpt_export.app:main"
+chatgpt-export = "chatgpt_export.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["chatgpt_export*"]
+
+[tool.setuptools.package-data]
+chatgpt_export = ["static/*"]

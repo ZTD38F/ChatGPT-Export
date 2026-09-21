@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: python -m pip install .
+      - name: Compile
+        run: python -m compileall -q chatgpt_export
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+      - name: Shell and browser syntax
+        run: |
+          bash -n install.sh
+          bash -n scripts/*.sh
+          bash -n update.sh
+          bash -n uninstall.sh
+          bash install.sh --help >/dev/null
+          node --check chatgpt_export/static/app.js
+      - name: Import smoke test
+        env:
+          CHATGPT_EXPORT_STATE_DIR: /tmp/chatgpt-export-state
+          CHATGPT_EXPORT_DATA_DIR: /tmp/chatgpt-export-state/data
+          CHATGPT_EXPORT_CONFIG_DIR: /tmp/chatgpt-export-config
+          CHATGPT_EXPORT_KEY_FILE: /tmp/chatgpt-export-config/fernet.key
+          CHATGPT_EXPORT_ADMIN_TOKEN_FILE: /tmp/chatgpt-export-config/admin.token
+        run: |
+          mkdir -p /tmp/chatgpt-export-config
+          python - <<'PY'
+          from cryptography.fernet import Fernet
+          from pathlib import Path
+          Path('/tmp/chatgpt-export-config/fernet.key').write_bytes(Fernet.generate_key()+b'\n')
+          Path('/tmp/chatgpt-export-config/admin.token').write_text('a'*64+'\n')
+          import chatgpt_export.app
+          print('import ok')
+          PY
+      - name: Secret-pattern scan
+        run: |
+          if grep -RInE --exclude-dir=.git --exclude='*.md' '(sk-proj-[A-Za-z0-9_-]{20,}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]{40,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' .; then
+            echo "Potential credential material detected." >&2
+            exit 1
+          fi

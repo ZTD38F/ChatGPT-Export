@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ChatGPT Export</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="card hero">
+      <div>
+        <p class="eyebrow">SELF-HOSTED BACKUP</p>
+        <h1>ChatGPT Export</h1>
+        <p class="muted">Read-only, resumable capture of every supported ChatGPT history scope.</p>
+      </div>
+      <div id="health" class="pill neutral">Checking…</div>
+    </section>
+
+    <section class="card compact">
+      <div class="row">
+        <div>
+          <h2>Admin access</h2>
+          <p class="muted small">Paste the token shown by <code>sudo chatgpt-exportctl admin-token</code>.</p>
+        </div>
+        <span id="admin-state" class="pill neutral">Not connected</span>
+      </div>
+      <div class="inline-form">
+        <input id="admin" type="password" autocomplete="off" placeholder="Admin token">
+        <button id="save-admin">Save</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Connect ChatGPT</h2>
+      <p class="muted">Sign in at ChatGPT, open <code>https://chatgpt.com/api/auth/session</code>, copy the complete JSON, then paste it here. The server verifies it before saving anything.</p>
+      <textarea id="session" rows="9" spellcheck="false" autocomplete="off" placeholder='{"user":...,"accessToken":"..."}'></textarea>
+      <div class="button-row">
+        <button id="connect" class="primary">Connect & start full export</button>
+        <button id="resume" class="secondary">Start / resume</button>
+        <button id="disconnect" class="danger secondary">Forget session</button>
+      </div>
+      <p class="warning">The session contains a bearer credential. Use only your own server over a trusted HTTPS connection.</p>
+    </section>
+
+    <section class="card">
+      <div class="row status-head">
+        <div>
+          <p class="eyebrow">EXPORT STATUS</p>
+          <h2 id="job-state">No export yet</h2>
+          <p id="phase" class="muted small">Waiting for status.</p>
+        </div>
+        <button id="refresh" class="secondary">Refresh</button>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div id="progress-bar" class="progress-bar"></div></div>
+      <div class="metrics">
+        <div><span id="m-chats">—</span><small>Chats verified</small></div>
+        <div><span id="m-projects">—</span><small>Projects</small></div>
+        <div><span id="m-assets">—</span><small>Assets verified</small></div>
+        <div><span id="m-workspaces">—</span><small>Workspaces</small></div>
+        <div><span id="m-errors">—</span><small>Errors</small></div>
+      </div>
+      <p id="notice" class="notice"></p>
+      <details>
+        <summary>Technical details</summary>
+        <pre id="status">No status loaded.</pre>
+      </details>
+    </section>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
