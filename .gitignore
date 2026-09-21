@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+*.tmp
+session*.json
+*.token
+*.key
+exports/
+data/
+coverage/
+.DS_Store
