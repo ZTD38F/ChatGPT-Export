@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: Shell validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: |
+          bash -n install.sh
+          bash -n update.sh
+          bash -n uninstall.sh
+          bash -n scripts/chatgpt-exportctl
+      - name: Help paths
+        run: |
+          bash install.sh --help >/dev/null
+          bash uninstall.sh --help >/dev/null
+      - name: Repository hygiene
+        run: |
+          test ! -e session.json
+          test ! -e .env
+          test ! -d exports
+          test ! -d data
+
+  node:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm run check
+      - run: npm test
+
+  static:
+    name: Repository invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No runtime npm dependencies
+        run: |
+          node - <<'NODE'
+          const pkg = require('./package.json');
+          if (pkg.dependencies && Object.keys(pkg.dependencies).length) process.exit(1);
+          if (pkg.devDependencies && Object.keys(pkg.devDependencies).length) process.exit(1);
+          NODE
+      - name: Read-only provider policy
+        run: node scripts/ci-readonly-check.mjs
