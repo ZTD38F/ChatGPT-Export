@@ -369,9 +369,10 @@ EOF
     fi
   fi
 
-  local candidate expected_rule
+  local candidate expected_rule bt
+  bt='`'
   candidate="$(mktemp "$TRAEFIK_DYNAMIC_DIR/.chatgpt-export.XXXXXX.yml")"
-  expected_rule='      rule: "Host(`'"$DOMAIN"'`)"'
+  printf -v expected_rule '      rule: "Host(%s%s%s)"' "$bt" "$DOMAIN" "$bt"
   {
     printf '%s\n' 'http:'
     printf '%s\n' '  routers:'
