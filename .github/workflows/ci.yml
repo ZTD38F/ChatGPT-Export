@@ -46,19 +46,27 @@ jobs:
             exit 1
           fi
           grep -q "Release shell syntax validation failed before installation" "$tmp/out"
-      - name: Full installer smoke test
+      - name: Full installer systemd E2E
         if: matrix.python == '3.12'
         run: |
+          set -Eeuo pipefail
+          cleanup() {
+            sudo systemctl disable --now chatgpt-export.service >/dev/null 2>&1 || true
+            sudo rm -f /etc/systemd/system/chatgpt-export.service
+            sudo systemctl daemon-reload >/dev/null 2>&1 || true
+            sudo rm -rf /opt/chatgpt-export-ci /etc/chatgpt-export-ci /var/lib/chatgpt-export-ci
+            sudo rm -f /usr/local/sbin/chatgpt-exportctl
+          }
+          trap cleanup EXIT
           sudo env \
-            CHATGPT_EXPORT_INSTALL_ROOT=/tmp/chatgpt-export-ci/opt \
-            CHATGPT_EXPORT_CONFIG_DIR=/tmp/chatgpt-export-ci/etc \
-            CHATGPT_EXPORT_STATE_DIR=/tmp/chatgpt-export-ci/var \
+            CHATGPT_EXPORT_INSTALL_ROOT=/opt/chatgpt-export-ci \
+            CHATGPT_EXPORT_CONFIG_DIR=/etc/chatgpt-export-ci \
+            CHATGPT_EXPORT_STATE_DIR=/var/lib/chatgpt-export-ci \
             CHATGPT_EXPORT_PORT=18788 \
-            bash ./install.sh --no-start
-          sudo test -L /tmp/chatgpt-export-ci/opt/current
-          sudo /tmp/chatgpt-export-ci/opt/current/.venv/bin/chatgpt-export doctor
-          sudo rm -rf /tmp/chatgpt-export-ci
-          sudo rm -f /usr/local/sbin/chatgpt-exportctl
+            bash ./install.sh
+          curl -fsS --max-time 5 http://127.0.0.1:18788/healthz
+          sudo /opt/chatgpt-export-ci/current/.venv/bin/chatgpt-export doctor
+          sudo systemctl is-active --quiet chatgpt-export.service
       - name: Import smoke test
         env:
           CHATGPT_EXPORT_STATE_DIR: /tmp/chatgpt-export-state
