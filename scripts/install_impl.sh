@@ -15,6 +15,7 @@ STATE_DIR="${CHATGPT_EXPORT_STATE_DIR:-/var/lib/chatgpt-export}"
 SERVICE="chatgpt-export"
 SERVICE_USER="chatgpt-export"
 PORT="${CHATGPT_EXPORT_PORT:-8788}"
+KEEP_RELEASES="${CHATGPT_EXPORT_KEEP_RELEASES:-3}"
 DRY_RUN=0
 NO_START=0
 NEW_RELEASE=""
@@ -101,11 +102,45 @@ cleanup(){
 trap cleanup EXIT
 trap 'die "Interrupted"' INT TERM
 
+prune_old_releases(){
+  ((DRY_RUN)) && return 0
+  "$PYTHON" - "$INSTALL_ROOT/releases" "$INSTALL_ROOT/current" "$KEEP_RELEASES" <<'PY'
+from pathlib import Path
+import shutil
+import sys
+
+release_root = Path(sys.argv[1])
+current_link = Path(sys.argv[2])
+keep = int(sys.argv[3])
+if not release_root.is_dir():
+    raise SystemExit(0)
+
+try:
+    current = current_link.resolve(strict=True)
+except FileNotFoundError:
+    current = None
+
+releases = [p for p in release_root.iterdir() if p.is_dir()]
+releases.sort(key=lambda p: p.stat().st_mtime_ns, reverse=True)
+
+protected = set(releases[:keep])
+if current is not None:
+    protected.add(current)
+
+for path in releases:
+    if path not in protected:
+        shutil.rmtree(path)
+PY
+}
+
 step 1 "Detect server"
 detect_system
 info "package-manager=$PKG init=$INIT port=$PORT"
 if [[ ! "$PORT" =~ ^[0-9]+$ ]] || ((PORT < 1 || PORT > 65535)); then
   die "CHATGPT_EXPORT_PORT must be 1-65535."
+fi
+if [[ ! "$KEEP_RELEASES" =~ ^[0-9]+$ ]] || ((KEEP_RELEASES < 2 || KEEP_RELEASES > 20)); then
+  die "CHATGPT_EXPORT_KEEP_RELEASES must be 2-20."
 fi
 [[ ! -d "$INSTALL_ROOT" || -e "$INSTALL_ROOT/.chatgpt-export-managed" ]] || die "$INSTALL_ROOT exists but is not managed by ChatGPT-Export."
 if [[ ! -e "$INSTALL_ROOT/.chatgpt-export-managed" ]]; then
@@ -269,6 +304,7 @@ else
 fi
 
 step 8 "Finish"
+prune_old_releases
 say "${GREEN}${BOLD}ChatGPT-Export installed successfully.${RESET}"
 if [[ -r "$CONFIG_DIR/public-domain" ]]; then
   public_domain="$(tr -d '\r\n' < "$CONFIG_DIR/public-domain")"
