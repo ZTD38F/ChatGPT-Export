@@ -105,7 +105,9 @@ cleanup(){
       restore_service_state nginx
     fi
   fi
-  [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]] && rm -rf "$BACKUP_DIR" || true
+  if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
+    rm -rf "$BACKUP_DIR" || true
+  fi
   trap - EXIT
   exit "$rc"
 }
@@ -118,8 +120,8 @@ port_listener_proxy(){
   [[ -z "$out" ]] && { printf 'none'; return; }
   printf '%s\n' "$out" >&3
 
-  grep -Eqi 'caddy' <<<"$out" && has_caddy=1 || true
-  grep -Eqi 'nginx' <<<"$out" && has_nginx=1 || true
+  if grep -Eqi 'caddy' <<<"$out"; then has_caddy=1; fi
+  if grep -Eqi 'nginx' <<<"$out"; then has_nginx=1; fi
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     if ! grep -Eqi 'caddy|nginx' <<<"$line"; then unknown=1; fi
