@@ -58,8 +58,10 @@ EOF
 [[ -n "$DOMAIN" ]] || { usage; exit 2; }
 [[ "$DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ && "$DOMAIN" == *.* ]] ||
   { say "✗ Invalid fully-qualified domain name." >&2; exit 2; }
-[[ "$TRAEFIK_BRIDGE_PORT" =~ ^[0-9]+$ ]] && ((TRAEFIK_BRIDGE_PORT >= 1 && TRAEFIK_BRIDGE_PORT <= 65535)) ||
-  { say "✗ Invalid CHATGPT_EXPORT_TRAEFIK_BRIDGE_PORT." >&2; exit 2; }
+if [[ ! "$TRAEFIK_BRIDGE_PORT" =~ ^[0-9]+$ ]] || ((TRAEFIK_BRIDGE_PORT < 1 || TRAEFIK_BRIDGE_PORT > 65535)); then
+  say "✗ Invalid CHATGPT_EXPORT_TRAEFIK_BRIDGE_PORT." >&2
+  exit 2
+fi
 
 install -d -m 755 "$(dirname "$LOG_FILE")"
 : > "$LOG_FILE"
@@ -374,7 +376,7 @@ EOF
     printf '%s\n' 'http:'
     printf '%s\n' '  routers:'
     printf '%s\n' '    chatgpt-export:'
-    printf '      rule: "Host(`%s`)"\n' "$DOMAIN"
+    printf "      rule: \"Host(\\`%s\\`)\"\\n" "$DOMAIN"
     printf '%s\n' '      entryPoints:'
     printf '%s\n' '        - websecure'
     printf '%s\n' '      tls:'
