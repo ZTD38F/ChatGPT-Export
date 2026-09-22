@@ -111,25 +111,47 @@ cleanup(){
 }
 trap cleanup EXIT
 
-port_conflicts(){
-  have ss || return 0
-  local out
+port_listener_proxy(){
+  have ss || { printf 'none'; return; }
+  local out unknown=0 has_caddy=0 has_nginx=0
   out="$(ss -H -ltnp 2>/dev/null | awk '$4 ~ /:80$/ || $4 ~ /:443$/ {print}' || true)"
-  [[ -z "$out" ]] && return 0
+  [[ -z "$out" ]] && { printf 'none'; return; }
   printf '%s\n' "$out" >&3
 
-  # Known supported proxies owning the ports are fine.
-  if grep -Eqi 'caddy|nginx' <<<"$out"; then return 0; fi
+  grep -Eqi 'caddy' <<<"$out" && has_caddy=1 || true
+  grep -Eqi 'nginx' <<<"$out" && has_nginx=1 || true
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    if ! grep -Eqi 'caddy|nginx' <<<"$line"; then unknown=1; fi
+  done <<<"$out"
 
-  warn "Ports 80/443 are already in use by another process."
-  return 1
+  if ((unknown)); then printf 'unknown'; return; fi
+  if ((has_caddy && has_nginx)); then printf 'mixed'; return; fi
+  if ((has_caddy)); then printf 'caddy'; return; fi
+  if ((has_nginx)); then printf 'nginx'; return; fi
+  printf 'unknown'
 }
 
 choose_proxy(){
+  local owner
   if service_active caddy; then printf 'caddy'; return; fi
   if service_active nginx; then printf 'nginx'; return; fi
 
-  port_conflicts || die "Cannot safely configure HTTPS while another process owns port 80/443."
+  owner="$(port_listener_proxy)"
+  case "$owner" in
+    caddy)
+      have caddy || die "Port 80/443 is owned by Caddy, but the caddy binary is unavailable."
+      printf 'caddy'; return ;;
+    nginx)
+      have nginx || die "Port 80/443 is owned by nginx, but the nginx binary is unavailable."
+      printf 'nginx'; return ;;
+    mixed)
+      die "Both Caddy and nginx appear to own public web ports; refusing to guess." ;;
+    unknown)
+      die "Port 80/443 is already owned by an unsupported process." ;;
+    none) ;;
+    *) die "Could not determine the public port owner safely." ;;
+  esac
 
   if have caddy; then printf 'caddy'; return; fi
   if have nginx; then printf 'nginx'; return; fi
