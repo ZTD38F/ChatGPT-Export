@@ -78,7 +78,16 @@ case "\${1:-status}" in
      rc=1
    fi
 
-   printf 'UI              http://127.0.0.1:%s\n' "\${CHATGPT_EXPORT_PORT:-8788}"
+   if [[ -r "$CONFIG_DIR/public-domain" ]]; then
+     public_domain="\$(tr -d '\\r\\n' < "$CONFIG_DIR/public-domain")"
+     if [[ -n "\$public_domain" ]]; then
+       printf 'UI              https://%s\n' "\$public_domain"
+     else
+       printf 'UI              http://127.0.0.1:%s\n' "\${CHATGPT_EXPORT_PORT:-8788}"
+     fi
+   else
+     printf 'UI              http://127.0.0.1:%s\n' "\${CHATGPT_EXPORT_PORT:-8788}"
+   fi
    "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" status || rc=1
    exit "\$rc"
    ;;
