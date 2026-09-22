@@ -88,7 +88,7 @@ The domain setup:
 - records the public hostname so `chatgpt-exportctl status` shows the HTTPS URL;
 - restores the previous proxy configuration if activation fails.
 
-For Cloudflare, keep the record **Proxied** and use **SSL/TLS → Full (strict)**.
+If you use Cloudflare, keep the record **Proxied** and use **SSL/TLS → Full (strict)**.
 
 ## First export
 
