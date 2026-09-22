@@ -67,6 +67,27 @@ The installer:
 
 The service binds to `127.0.0.1:8788` by default.
 
+## Public HTTPS domain
+
+After the application is healthy and the DNS record exists, configure the public hostname in one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/setup-domain.sh | sudo bash -s -- chatgpt.sonoryx.store
+```
+
+The domain setup:
+
+- verifies the local ChatGPT-Export health endpoint first;
+- verifies that the hostname resolves;
+- reuses an existing Caddy or nginx installation when present;
+- otherwise installs Caddy automatically on apt-based systems;
+- configures HTTPS reverse proxying to `127.0.0.1:8788`;
+- validates the proxy configuration before activation;
+- verifies `https://<domain>/healthz` publicly;
+- restores the previous proxy configuration if activation fails.
+
+For Cloudflare, keep the record **Proxied** and use **SSL/TLS → Full (strict)**.
+
 ## First export
 
 1. Sign in to ChatGPT in your normal browser.
