@@ -111,7 +111,15 @@ jobs:
           Path('/tmp/chatgpt-export-config/fernet.key').write_bytes(Fernet.generate_key()+b'\n')
           Path('/tmp/chatgpt-export-config/admin.token').write_text('a'*64+'\n')
           import chatgpt_export.app
-          print('import ok')
+          from fastapi.testclient import TestClient
+          with TestClient(chatgpt_export.app.app) as client:
+              response = client.get('/healthz')
+              assert response.status_code == 200
+              assert response.headers['strict-transport-security'] == 'max-age=31536000'
+              assert response.headers['permissions-policy'] == 'camera=(), microphone=(), geolocation=()'
+              assert response.headers['cross-origin-opener-policy'] == 'same-origin'
+              assert response.headers['x-permitted-cross-domain-policies'] == 'none'
+          print('import + security headers ok')
           PY
       - name: Secret-pattern scan
         run: |
