@@ -270,8 +270,17 @@ fi
 
 step 8 "Finish"
 say "${GREEN}${BOLD}ChatGPT-Export installed successfully.${RESET}"
-say "Local UI: ${BOLD}http://127.0.0.1:$PORT${RESET}"
+if [[ -r "$CONFIG_DIR/public-domain" ]]; then
+  public_domain="$(tr -d '\r\n' < "$CONFIG_DIR/public-domain")"
+else
+  public_domain=""
+fi
+if [[ -n "$public_domain" ]]; then
+  say "UI: ${BOLD}https://$public_domain${RESET}"
+else
+  say "Local UI: ${BOLD}http://127.0.0.1:$PORT${RESET}"
+  say "Keep the service on loopback until a trusted authenticated HTTPS reverse proxy is configured."
+fi
 say "Admin token: ${BOLD}sudo chatgpt-exportctl admin-token${RESET}"
 say "Status: ${BOLD}sudo chatgpt-exportctl status${RESET}"
 say "Doctor: ${BOLD}sudo chatgpt-exportctl doctor${RESET}"
-say "Keep the service on loopback until a trusted authenticated HTTPS reverse proxy is configured."
