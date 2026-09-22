@@ -79,11 +79,13 @@ The domain setup:
 
 - verifies the local ChatGPT-Export health endpoint first;
 - verifies that the hostname resolves;
-- reuses an existing Caddy or nginx installation when present;
-- otherwise installs Caddy automatically on apt-based systems;
-- configures HTTPS reverse proxying to `127.0.0.1:8788`;
-- validates the proxy configuration before activation;
-- verifies `https://<domain>/healthz` publicly;
+- detects an existing **Docker Traefik** edge proxy first;
+- for Docker Traefik, keeps ChatGPT-Export on `127.0.0.1:8788` and creates a private systemd socket proxy bound only to the Traefik Docker gateway;
+- adds a narrowly scoped UFW allow rule for the Traefik Docker subnet when UFW is active;
+- writes a Traefik file-provider router/service and uses the discovered ACME resolver;
+- otherwise reuses an existing Caddy or nginx installation, or installs Caddy automatically on apt-based systems;
+- verifies origin HTTPS and then public `https://<domain>/healthz`;
+- records the public hostname so `chatgpt-exportctl status` shows the HTTPS URL;
 - restores the previous proxy configuration if activation fails.
 
 For Cloudflare, keep the record **Proxied** and use **SSL/TLS → Full (strict)**.
@@ -208,6 +210,7 @@ The uninstaller deliberately preserves `/etc/chatgpt-export` and `/var/lib/chatg
 - signed asset URLs are redacted from metadata files;
 - asset downloads reject local/private/reserved DNS destinations;
 - service binds to loopback by default;
+- Docker Traefik integration uses a private bridge listener on the Docker gateway instead of exposing the application port publicly;
 - systemd hardening and restrictive umask;
 - atomic writes and completion markers;
 - no silent fallback to DOM scraping when an API contract drifts.
