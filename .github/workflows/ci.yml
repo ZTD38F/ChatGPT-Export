@@ -35,6 +35,14 @@ jobs:
           bash -n setup-domain.sh
           bash install.sh --help >/dev/null
           node --check chatgpt_export/static/app.js
+      - name: ShellCheck
+        if: matrix.python == '3.12'
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get -o DPkg::Lock::Timeout=180 update -qq
+            sudo apt-get -o DPkg::Lock::Timeout=180 install -y shellcheck
+          fi
+          shellcheck -x install.sh update.sh uninstall.sh setup-domain.sh scripts/*.sh
       - name: Installer syntax-guard regression
         run: |
           tmp="$(mktemp -d)"
