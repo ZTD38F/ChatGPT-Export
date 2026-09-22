@@ -4,8 +4,9 @@ IFS=$'\n\t'
 umask 077
 SOURCE_DIR="${CHATGPT_EXPORT_SOURCE_DIR:-}"
 [[ -n "$SOURCE_DIR" && -f "$SOURCE_DIR/pyproject.toml" ]] || { echo "CHATGPT_EXPORT_SOURCE_DIR is invalid." >&2; exit 1; }
-# shellcheck source=install_lib.sh
+# shellcheck source=scripts/install_lib.sh
 . "$SOURCE_DIR/scripts/install_lib.sh"
+# shellcheck source=scripts/service_setup.sh
 . "$SOURCE_DIR/scripts/service_setup.sh"
 
 INSTALL_ROOT="${CHATGPT_EXPORT_INSTALL_ROOT:-/opt/chatgpt-export}"
@@ -76,20 +77,24 @@ rollback(){
 
   if [[ "$INIT" == systemd ]] && have systemctl; then
     systemctl daemon-reload >/dev/null 2>&1 || true
-    [[ -e "$ROLLBACK_DIR/systemd.service.exists" ]] && systemctl restart "$SERVICE" >/dev/null 2>&1 || true
+    if [[ -e "$ROLLBACK_DIR/systemd.service.exists" ]]; then
+      systemctl restart "$SERVICE" >/dev/null 2>&1 || true
+    fi
   elif [[ "$INIT" == openrc ]] && have rc-service; then
-    [[ -e "$ROLLBACK_DIR/openrc.service.exists" ]] && rc-service "$SERVICE" restart >/dev/null 2>&1 || true
+    if [[ -e "$ROLLBACK_DIR/openrc.service.exists" ]]; then
+      rc-service "$SERVICE" restart >/dev/null 2>&1 || true
+    fi
   fi
 
-  [[ -n "$NEW_RELEASE" && -d "$NEW_RELEASE" ]] && rm -rf "$NEW_RELEASE" || true
-  ((ROOT_EXISTED == 0)) && rm -rf "$INSTALL_ROOT" || true
-  ((CONFIG_EXISTED == 0)) && rm -rf "$CONFIG_DIR" || true
-  ((STATE_EXISTED == 0)) && rm -rf "$STATE_DIR" || true
+  if [[ -n "$NEW_RELEASE" && -d "$NEW_RELEASE" ]]; then rm -rf "$NEW_RELEASE" || true; fi
+  if ((ROOT_EXISTED == 0)); then rm -rf "$INSTALL_ROOT" || true; fi
+  if ((CONFIG_EXISTED == 0)); then rm -rf "$CONFIG_DIR" || true; fi
+  if ((STATE_EXISTED == 0)); then rm -rf "$STATE_DIR" || true; fi
 }
 cleanup(){
   local rc=$?
   if ((rc != 0 && TRANSACTION == 1)); then rollback; fi
-  [[ -n "$ROLLBACK_DIR" && -d "$ROLLBACK_DIR" ]] && rm -rf "$ROLLBACK_DIR" || true
+  if [[ -n "$ROLLBACK_DIR" && -d "$ROLLBACK_DIR" ]]; then rm -rf "$ROLLBACK_DIR" || true; fi
   trap - EXIT
   exit "$rc"
 }
@@ -99,7 +104,9 @@ trap 'die "Interrupted"' INT TERM
 step 1 "Detect server"
 detect_system
 info "package-manager=$PKG init=$INIT port=$PORT"
-[[ "$PORT" =~ ^[0-9]+$ ]] && ((PORT>=1 && PORT<=65535)) || die "CHATGPT_EXPORT_PORT must be 1-65535."
+if [[ ! "$PORT" =~ ^[0-9]+$ ]] || ((PORT < 1 || PORT > 65535)); then
+  die "CHATGPT_EXPORT_PORT must be 1-65535."
+fi
 [[ ! -d "$INSTALL_ROOT" || -e "$INSTALL_ROOT/.chatgpt-export-managed" ]] || die "$INSTALL_ROOT exists but is not managed by ChatGPT-Export."
 if [[ ! -e "$INSTALL_ROOT/.chatgpt-export-managed" ]]; then
   [[ ! -e /etc/systemd/system/$SERVICE.service ]] || die "Foreign service exists."
@@ -112,7 +119,11 @@ step 2 "Prerequisites"
 need=0
 select_python || need=1
 for c in curl tar openssl; do have "$c" || need=1; done
-if ((need)); then ((DRY_RUN)) && info "Would install missing prerequisites." || install_prereqs; fi
+if ((need)); then
+  if ((DRY_RUN)); then info "Would install missing prerequisites."
+  else install_prereqs
+  fi
+fi
 if ((!DRY_RUN)); then
   select_python || die "Python >=3.10 unavailable."
   venv_test="$(mktemp -d /tmp/chatgpt-export-venv-test.XXXXXX)"
