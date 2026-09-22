@@ -46,6 +46,15 @@ jobs:
             exit 1
           fi
           grep -q "Release shell syntax validation failed before installation" "$tmp/out"
+      - name: Piped bootstrap regression
+        if: matrix.python == '3.12'
+        run: |
+          set -Eeuo pipefail
+          cat install.sh | sudo bash -s -- --dry-run > /tmp/chatgpt-export-piped.out 2>&1
+          if grep -q "BASH_SOURCE.*unbound variable" /tmp/chatgpt-export-piped.out; then
+            cat /tmp/chatgpt-export-piped.out >&2
+            exit 1
+          fi
       - name: Full installer systemd E2E
         if: matrix.python == '3.12'
         run: |
@@ -65,7 +74,18 @@ jobs:
             CHATGPT_EXPORT_PORT=18788 \
             bash ./install.sh
           curl -fsS --max-time 5 http://127.0.0.1:18788/healthz
-          sudo chatgpt-exportctl doctor
+
+          status_out="$(sudo chatgpt-exportctl status)"
+          printf '%s\n' "$status_out"
+          grep -Fq "ChatGPT-Export  ✓ running" <<<"$status_out"
+          grep -Fq "Health          ✓ OK" <<<"$status_out"
+          grep -Fq "UI              http://127.0.0.1:18788" <<<"$status_out"
+          grep -Fq "Export         — not started" <<<"$status_out"
+
+          doctor_out="$(sudo chatgpt-exportctl doctor)"
+          printf '%s\n' "$doctor_out"
+          grep -Fxq "✓ Doctor: all checks passed." <<<"$doctor_out"
+
           sudo systemctl is-active --quiet chatgpt-export.service
       - name: Import smoke test
         env:
