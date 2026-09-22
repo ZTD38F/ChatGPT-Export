@@ -145,9 +145,12 @@ else
   backup_optional /etc/init.d/$SERVICE openrc.service
   TRANSACTION=1
 
-  release_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  release_id="$(date -u +%Y%m%dT%H%M%SZ)-$"
   NEW_RELEASE="$INSTALL_ROOT/releases/$release_id"
-  install -d -m 755 "$INSTALL_ROOT/releases" "$NEW_RELEASE" "$STATE_DIR" "$STATE_DIR/data"
+  # Create every path component explicitly: umask 077 must never make an
+  # intermediate install directory inaccessible to the dedicated service user.
+  install -d -m 755 "$INSTALL_ROOT" "$INSTALL_ROOT/releases" "$NEW_RELEASE"
+  install -d -m 700 "$STATE_DIR" "$STATE_DIR/data"
   touch "$INSTALL_ROOT/.chatgpt-export-managed"
   cp -a "$SOURCE_DIR/." "$NEW_RELEASE/"
   rm -rf "$NEW_RELEASE/.git" "$NEW_RELEASE/__pycache__" || true
@@ -165,6 +168,15 @@ if ((DRY_RUN)); then
 else
   ensure_service_user
   install -d -m 750 -o root -g "$SERVICE_USER" "$CONFIG_DIR"
+
+  # Release code stays root-owned but must be traversable/readable by the
+  # dedicated service group. Python venv directories are commonly created as
+  # 0700 under this installer's umask 077, so normalize the full release tree.
+  chown root:"$SERVICE_USER" "$INSTALL_ROOT" "$INSTALL_ROOT/releases"
+  chmod 750 "$INSTALL_ROOT" "$INSTALL_ROOT/releases"
+  chown -R root:"$SERVICE_USER" "$NEW_RELEASE"
+  chmod -R g+rX,o-rwx "$NEW_RELEASE"
+
   chown -R "$SERVICE_USER:$SERVICE_USER" "$STATE_DIR"
   chmod 700 "$STATE_DIR"
   [[ -f "$CONFIG_DIR/fernet.key" ]] || "$NEW_RELEASE/.venv/bin/python" - <<PY
@@ -190,8 +202,40 @@ ENV
   chmod 640 "$CONFIG_DIR/service.env.new"
   mv -f "$CONFIG_DIR/service.env.new" "$CONFIG_DIR/service.env"
   ln -sfn "$NEW_RELEASE" "$INSTALL_ROOT/current"
+
+  # Verify the exact runtime access model as the service UID/GID before
+  # touching systemd/OpenRC. This catches CHDIR/permission failures early.
+  "$PYTHON" - "$SERVICE_USER" "$INSTALL_ROOT/current" "$CONFIG_DIR" "$STATE_DIR" <<'PY'
+import os
+import pwd
+import sys
+from pathlib import Path
+
+user, workdir, config_dir, state_dir = sys.argv[1:]
+pw = pwd.getpwnam(user)
+os.initgroups(user, pw.pw_gid)
+os.setgid(pw.pw_gid)
+os.setuid(pw.pw_uid)
+
+work = Path(workdir)
+os.chdir(work)
+
+required_exec = work / ".venv" / "bin" / "chatgpt-export-server"
+if not os.access(required_exec, os.R_OK | os.X_OK):
+    raise SystemExit(f"service user cannot execute {required_exec}")
+
+for name in ("service.env", "fernet.key", "admin.token"):
+    path = Path(config_dir) / name
+    with path.open("rb") as handle:
+        handle.read(1)
+
+probe = Path(state_dir) / ".permission-probe"
+with probe.open("wb") as handle:
+    handle.write(b"ok")
+probe.unlink()
+PY
 fi
-ok "Protected config prepared."
+ok "Protected config and service-user access verified."
 
 step 6 "Service supervision"
 if ((DRY_RUN)); then info "Would create $INIT service integration."
