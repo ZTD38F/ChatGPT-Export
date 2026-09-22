@@ -34,6 +34,18 @@ jobs:
           bash -n uninstall.sh
           bash install.sh --help >/dev/null
           node --check chatgpt_export/static/app.js
+      - name: Installer syntax-guard regression
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          cp -a . "$tmp/repo"
+          printf '\nif (BROKEN)); then :; fi\n' >> "$tmp/repo/scripts/install_impl.sh"
+          if bash "$tmp/repo/install.sh" --dry-run >"$tmp/out" 2>&1; then
+            echo "Installer accepted a syntactically broken release." >&2
+            cat "$tmp/out" >&2
+            exit 1
+          fi
+          grep -q "Release shell syntax validation failed before installation" "$tmp/out"
       - name: Import smoke test
         env:
           CHATGPT_EXPORT_STATE_DIR: /tmp/chatgpt-export-state
