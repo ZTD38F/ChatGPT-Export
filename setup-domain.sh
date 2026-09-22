@@ -605,4 +605,4 @@ chmod 640 "$CONFIG_DIR/public-domain"
 MUTATED=0
 say ""
 ok "https://$DOMAIN is live."
-say "Cloudflare: Proxy ON · SSL/TLS Full (strict)"
+say "Cloudflare (if used): Proxy ON · SSL/TLS Full (strict)"
