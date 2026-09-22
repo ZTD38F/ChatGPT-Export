@@ -32,6 +32,7 @@ jobs:
           bash -n scripts/*.sh
           bash -n update.sh
           bash -n uninstall.sh
+          bash -n setup-domain.sh
           bash install.sh --help >/dev/null
           node --check chatgpt_export/static/app.js
       - name: Installer syntax-guard regression
