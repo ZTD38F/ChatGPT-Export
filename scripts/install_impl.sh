@@ -244,11 +244,18 @@ ok "Service definition prepared."
 
 step 7 "Start and verify"
 if ((DRY_RUN)); then ok "Dry-run complete; no changes were made."; TRANSACTION=0; exit 0; fi
-start_and_verify || die "Service failed health verification; rollback will restore previous activation."
-"$INSTALL_ROOT/current/.venv/bin/chatgpt-export" doctor || die "Post-install doctor failed."
-TRANSACTION=0
-NEW_RELEASE=""
-ok "Service passed health/storage checks."
+if ((NO_START)); then
+  warn "Start skipped by --no-start; runtime health/database verification was intentionally not performed."
+  TRANSACTION=0
+  NEW_RELEASE=""
+  ok "Installation staged without starting the service."
+else
+  start_and_verify || die "Service failed health verification; rollback will restore previous activation."
+  "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" doctor || die "Post-install doctor failed."
+  TRANSACTION=0
+  NEW_RELEASE=""
+  ok "Service passed health/storage checks."
+fi
 
 step 8 "Finish"
 say "${GREEN}${BOLD}ChatGPT-Export installed successfully.${RESET}"
