@@ -46,6 +46,19 @@ jobs:
             exit 1
           fi
           grep -q "Release shell syntax validation failed before installation" "$tmp/out"
+      - name: Full installer smoke test
+        if: matrix.python == '3.12'
+        run: |
+          sudo env \
+            CHATGPT_EXPORT_INSTALL_ROOT=/tmp/chatgpt-export-ci/opt \
+            CHATGPT_EXPORT_CONFIG_DIR=/tmp/chatgpt-export-ci/etc \
+            CHATGPT_EXPORT_STATE_DIR=/tmp/chatgpt-export-ci/var \
+            CHATGPT_EXPORT_PORT=18788 \
+            bash ./install.sh --no-start
+          sudo test -L /tmp/chatgpt-export-ci/opt/current
+          sudo /tmp/chatgpt-export-ci/opt/current/.venv/bin/chatgpt-export doctor
+          sudo rm -rf /tmp/chatgpt-export-ci
+          sudo rm -f /usr/local/sbin/chatgpt-exportctl
       - name: Import smoke test
         env:
           CHATGPT_EXPORT_STATE_DIR: /tmp/chatgpt-export-state
