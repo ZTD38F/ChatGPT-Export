@@ -377,7 +377,7 @@ EOF
     printf '%s\n' 'http:'
     printf '%s\n' '  routers:'
     printf '%s\n' '    chatgpt-export:'
-    printf "      rule: \"Host(\\`%s\\`)\"\\n" "$DOMAIN"
+    printf '      rule: \"Host(%s%s%s)\"\\n' \"$bt\" \"$DOMAIN\" \"$bt\"
     printf '%s\n' '      entryPoints:'
     printf '%s\n' '        - websecure'
     printf '%s\n' '      tls:'
