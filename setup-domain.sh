@@ -367,24 +367,39 @@ EOF
     fi
   fi
 
-  cat >"$TRAEFIK_DYNAMIC_FILE" <<EOF
-http:
-  routers:
-    chatgpt-export:
-      rule: "Host(`$DOMAIN`)"
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: $TRAEFIK_RESOLVER
-      service: chatgpt-export
+  local candidate expected_rule
+  candidate="$(mktemp "$TRAEFIK_DYNAMIC_DIR/.chatgpt-export.XXXXXX.yml")"
+  expected_rule='      rule: "Host(`'"$DOMAIN"'`)"'
+  {
+    printf '%s\n' 'http:'
+    printf '%s\n' '  routers:'
+    printf '%s\n' '    chatgpt-export:'
+    printf '      rule: "Host(`%s`)"\n' "$DOMAIN"
+    printf '%s\n' '      entryPoints:'
+    printf '%s\n' '        - websecure'
+    printf '%s\n' '      tls:'
+    printf '        certResolver: %s\n' "$TRAEFIK_RESOLVER"
+    printf '%s\n' '      service: chatgpt-export'
+    printf '%s\n' ''
+    printf '%s\n' '  services:'
+    printf '%s\n' '    chatgpt-export:'
+    printf '%s\n' '      loadBalancer:'
+    printf '%s\n' '        passHostHeader: true'
+    printf '%s\n' '        servers:'
+    printf '          - url: "http://%s:%s"\n' "$TRAEFIK_GATEWAY" "$TRAEFIK_BRIDGE_PORT"
+  } >"$candidate"
+  chmod 644 "$candidate"
 
-  services:
-    chatgpt-export:
-      loadBalancer:
-        passHostHeader: true
-        servers:
-          - url: "http://$TRAEFIK_GATEWAY:$TRAEFIK_BRIDGE_PORT"
-EOF
+  if ! grep -Fxq "$expected_rule" "$candidate"; then
+    rm -f "$candidate"
+    die "Generated Traefik router rule failed validation."
+  fi
+  if grep -Fq 'Host()' "$candidate"; then
+    rm -f "$candidate"
+    die "Generated Traefik router rule is empty."
+  fi
+
+  mv -f "$candidate" "$TRAEFIK_DYNAMIC_FILE"
 
   sleep 2
   if ! docker exec "$TRAEFIK_CONTAINER" traefik healthcheck --ping >&3 2>&1; then
