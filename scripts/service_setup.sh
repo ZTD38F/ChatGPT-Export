@@ -53,7 +53,9 @@ RC
 
 start_and_verify(){
   if ((NO_START)); then warn "Start skipped by --no-start."; return 0; fi
-  if [[ "$INIT" == systemd ]]; then systemctl restart "$SERVICE"
+  if [[ "$INIT" == systemd ]]; then
+    systemctl reset-failed "$SERVICE" >/dev/null 2>&1 || true
+    systemctl restart "$SERVICE"
   elif [[ "$INIT" == openrc ]]; then rc-service "$SERVICE" restart
   else return 0
   fi
