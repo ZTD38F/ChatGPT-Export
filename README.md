@@ -126,14 +126,30 @@ This behavior is intentional: the server never asks for your Google/OpenAI passw
 
 ## Management
 
+Normal commands are intentionally concise:
+
 ```bash
 sudo chatgpt-exportctl status
-sudo chatgpt-exportctl logs
 sudo chatgpt-exportctl doctor
 sudo chatgpt-exportctl export-status
+```
+
+Use verbose diagnostics only when something is wrong:
+
+```bash
+sudo chatgpt-exportctl status-full
+sudo chatgpt-exportctl doctor-full
+sudo chatgpt-exportctl export-status-json
+sudo chatgpt-exportctl logs
+```
+
+Other controls:
+
+```bash
 sudo chatgpt-exportctl restart
 sudo chatgpt-exportctl stop
 sudo chatgpt-exportctl data-dir
+sudo chatgpt-exportctl admin-token
 ```
 
 ## Safe preview
