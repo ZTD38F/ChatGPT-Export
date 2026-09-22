@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 write_service_definition(){
   if [[ "$INIT" == systemd ]]; then
-    cat > /etc/systemd/system/$SERVICE.service <<UNIT
+    cat > "/etc/systemd/system/$SERVICE.service" <<UNIT
 [Unit]
 Description=ChatGPT Export self-hosted backup server
 After=network-online.target
@@ -33,7 +33,7 @@ WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload; systemctl enable "$SERVICE" >/dev/null
   elif [[ "$INIT" == openrc ]]; then
-    cat > /etc/init.d/$SERVICE <<RC
+    cat > "/etc/init.d/$SERVICE" <<RC
 #!/sbin/openrc-run
 name="ChatGPT Export"
 command="$INSTALL_ROOT/current/.venv/bin/chatgpt-export-server"
@@ -45,7 +45,7 @@ error_log="/var/log/$SERVICE.log"
 start_pre(){ set -a; . "$CONFIG_DIR/service.env"; set +a; }
 depend(){ need net; after firewall; }
 RC
-    chmod 755 /etc/init.d/$SERVICE; rc-update add "$SERVICE" default >/dev/null
+    chmod 755 "/etc/init.d/$SERVICE"; rc-update add "$SERVICE" default >/dev/null
   else
     warn "No systemd/OpenRC detected; 24/7 supervision was not configured."
   fi
@@ -65,6 +65,8 @@ start_and_verify(){
     else healthy=0; fi
     sleep 1
   done
-  [[ "$INIT" == systemd ]] && journalctl -u "$SERVICE" -n 100 --no-pager >&2 || true
+  if [[ "$INIT" == systemd ]]; then
+    journalctl -u "$SERVICE" -n 100 --no-pager >&2 || true
+  fi
   return 1
 }
