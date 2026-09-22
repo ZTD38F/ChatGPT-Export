@@ -12,7 +12,9 @@ import sys
 raise SystemExit(0 if sys.version_info >= (3,10) else 1)
 PY
 }
+# shellcheck disable=SC2034 # PYTHON is consumed by install_impl.sh after sourcing.
 select_python(){ local p; PYTHON=""; for p in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do if have "$p" && python_ok "$p"; then PYTHON="$(command -v "$p")"; return 0; fi; done; return 1; }
+# shellcheck disable=SC2034 # PKG and INIT are consumed by install_impl.sh after sourcing.
 detect_system(){
   [[ "$(uname -s)" == Linux ]] || die "Linux is required."
   case "$(uname -m)" in x86_64|amd64|aarch64|arm64) :;; *) die "Unsupported architecture: $(uname -m)";; esac
