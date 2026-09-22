@@ -177,29 +177,59 @@ docker_traefik_running(){
 }
 
 discover_docker_traefik(){
-  TRAEFIK_DYNAMIC_DIR="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/dynamic"}}{{.Source}}{{end}}{{end}}' "$TRAEFIK_CONTAINER")"
+  have python3 || die "Python 3 is required to inspect Docker Traefik safely."
+
+  local -a info
+  local network_id
+  mapfile -t info < <(
+    docker inspect "$TRAEFIK_CONTAINER" | python3 -c '
+import json, re, sys
+d = json.load(sys.stdin)[0]
+dynamic = next((m.get("Source", "") for m in d.get("Mounts", []) if m.get("Destination") == "/dynamic"), "")
+networks = d.get("NetworkSettings", {}).get("Networks", {})
+network = next(((name, cfg.get("Gateway", "")) for name, cfg in networks.items() if cfg.get("Gateway")), ("", ""))
+cmd = d.get("Config", {}).get("Cmd") or []
+http = []
+any_acme = []
+for arg in cmd:
+    m = re.match(r"^--certificatesresolvers\.([^.]+)\.acme\.httpchallenge\.", arg)
+    if m:
+        http.append(m.group(1))
+    m = re.match(r"^--certificatesresolvers\.([^.]+)\.acme\.", arg)
+    if m:
+        any_acme.append(m.group(1))
+resolver = (http or any_acme or [""])[0]
+print(dynamic)
+print(network[0])
+print(network[1])
+print(resolver)
+'
+  )
+  TRAEFIK_DYNAMIC_DIR="${info[0]:-}"
+  TRAEFIK_NETWORK="${info[1]:-}"
+  TRAEFIK_GATEWAY="${info[2]:-}"
+  TRAEFIK_RESOLVER="${info[3]:-}"
+
   [[ -n "$TRAEFIK_DYNAMIC_DIR" && -d "$TRAEFIK_DYNAMIC_DIR" ]] ||
     die "Traefik is running, but its /dynamic file-provider directory is not mounted."
-
-  local network_line network_id
-  network_line="$(docker inspect -f '{{range $name,$cfg := .NetworkSettings.Networks}}{{if $cfg.Gateway}}{{$name}} {{$cfg.Gateway}}{{"\n"}}{{end}}{{end}}' "$TRAEFIK_CONTAINER" | head -n1)"
-  read -r TRAEFIK_NETWORK TRAEFIK_GATEWAY <<<"$network_line"
   [[ -n "$TRAEFIK_NETWORK" && -n "$TRAEFIK_GATEWAY" ]] ||
     die "Could not discover Traefik's routable Docker network."
+  [[ -n "$TRAEFIK_RESOLVER" ]] ||
+    die "No Traefik ACME certificate resolver was discovered."
 
-  TRAEFIK_SUBNET="$(docker network inspect -f '{{(index .IPAM.Config 0).Subnet}}' "$TRAEFIK_NETWORK")"
-  network_id="$(docker network inspect -f '{{.Id}}' "$TRAEFIK_NETWORK")"
+  TRAEFIK_SUBNET="$(docker network inspect "$TRAEFIK_NETWORK" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)[0]
+cfg = (d.get("IPAM", {}).get("Config") or [{}])[0]
+print(cfg.get("Subnet", ""))
+')"
+  network_id="$(docker network inspect "$TRAEFIK_NETWORK" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0].get("Id",""))')"
+  [[ -n "$TRAEFIK_SUBNET" && -n "$network_id" ]] ||
+    die "Could not discover Traefik Docker network metadata."
+
   TRAEFIK_BRIDGE_IF="br-${network_id:0:12}"
   [[ -d "/sys/class/net/$TRAEFIK_BRIDGE_IF" ]] ||
     die "Docker bridge interface $TRAEFIK_BRIDGE_IF was not found."
-
-  TRAEFIK_RESOLVER="$(docker inspect -f '{{range .Config.Cmd}}{{println .}}{{end}}' "$TRAEFIK_CONTAINER" |
-    sed -n 's/^--certificatesresolvers\.\([^.]*\)\.acme\.httpchallenge\..*/\1/p' | head -n1)"
-  if [[ -z "$TRAEFIK_RESOLVER" ]]; then
-    TRAEFIK_RESOLVER="$(docker inspect -f '{{range .Config.Cmd}}{{println .}}{{end}}' "$TRAEFIK_CONTAINER" |
-      sed -n 's/^--certificatesresolvers\.\([^.]*\)\.acme\..*/\1/p' | head -n1)"
-  fi
-  [[ -n "$TRAEFIK_RESOLVER" ]] || die "No Traefik ACME certificate resolver was discovered."
 
   TRAEFIK_DYNAMIC_FILE="$TRAEFIK_DYNAMIC_DIR/chatgpt-export.yml"
   log "traefik container=$TRAEFIK_CONTAINER network=$TRAEFIK_NETWORK gateway=$TRAEFIK_GATEWAY subnet=$TRAEFIK_SUBNET bridge=$TRAEFIK_BRIDGE_IF resolver=$TRAEFIK_RESOLVER"
