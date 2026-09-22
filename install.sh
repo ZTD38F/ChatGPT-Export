@@ -19,7 +19,11 @@ for arg in "$@"; do case "$arg" in --help|-h) usage; exit 0;; esac; done
 SOURCE_REF="${BASH_SOURCE[0]-}"
 SCRIPT_DIR=""
 if [[ -n "$SOURCE_REF" && "$SOURCE_REF" != "bash" && "$SOURCE_REF" != "/dev/stdin" ]]; then
-  SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE_REF")" 2>/dev/null && pwd || true)"
+  if SCRIPT_DIR="$(unset CDPATH; cd -- "$(dirname -- "$SOURCE_REF")" 2>/dev/null && pwd)"; then
+    :
+  else
+    SCRIPT_DIR=""
+  fi
 fi
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/pyproject.toml" && -f "$SCRIPT_DIR/scripts/install_impl.sh" ]]; then
   validate_source_tree "$SCRIPT_DIR" || exit 1
