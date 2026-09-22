@@ -39,16 +39,100 @@ ensure_service_user(){
 write_ctl(){ cat > /usr/local/sbin/chatgpt-exportctl <<CTL
 #!/usr/bin/env bash
 set -euo pipefail
+
+SERVICE="$SERVICE"
+CONFIG_DIR="$CONFIG_DIR"
+INSTALL_ROOT="$INSTALL_ROOT"
+STATE_DIR="$STATE_DIR"
+
+load_env(){
+  set -a
+  . "$CONFIG_DIR/service.env"
+  set +a
+}
+
 case "\${1:-status}" in
- status) if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then exec systemctl status $SERVICE --no-pager; elif command -v rc-service >/dev/null && [[ -f /etc/init.d/$SERVICE ]]; then exec rc-service $SERVICE status; else echo 'No supported service manager'; exit 1; fi;;
- logs) if command -v journalctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then exec journalctl -u $SERVICE -n "\${2:-120}" --no-pager; else exec tail -n "\${2:-120}" /var/log/$SERVICE.log; fi;;
- restart) if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then exec systemctl restart $SERVICE; else exec rc-service $SERVICE restart; fi;;
- stop) if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then exec systemctl stop $SERVICE; else exec rc-service $SERVICE stop; fi;;
- doctor) set -a; . $CONFIG_DIR/service.env; set +a; exec $INSTALL_ROOT/current/.venv/bin/chatgpt-export doctor;;
- export-status) set -a; . $CONFIG_DIR/service.env; set +a; exec $INSTALL_ROOT/current/.venv/bin/chatgpt-export status;;
- admin-token) cat $CONFIG_DIR/admin.token;;
- data-dir) echo $STATE_DIR/data;;
- *) echo 'Usage: chatgpt-exportctl {status|logs [N]|restart|stop|doctor|export-status|admin-token|data-dir}' >&2; exit 2;;
+ status)
+   load_env
+   rc=0
+   state="unknown"
+   if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then
+     state="\$(systemctl is-active $SERVICE 2>/dev/null || true)"
+   elif command -v rc-service >/dev/null && [[ -f /etc/init.d/$SERVICE ]]; then
+     if rc-service $SERVICE status >/dev/null 2>&1; then state="active"; else state="inactive"; fi
+   fi
+
+   if [[ "\$state" == "active" ]]; then
+     printf 'ChatGPT-Export  ✓ running\n'
+     if curl -fsS --max-time 2 "http://127.0.0.1:\${CHATGPT_EXPORT_PORT:-8788}/healthz" >/dev/null 2>&1; then
+       printf 'Health          ✓ OK\n'
+     else
+       printf 'Health          ✗ unavailable\n'
+       rc=1
+     fi
+   else
+     printf 'ChatGPT-Export  ✗ %s\n' "\$state"
+     printf 'Health          — offline\n'
+     rc=1
+   fi
+
+   printf 'UI              http://127.0.0.1:%s\n' "\${CHATGPT_EXPORT_PORT:-8788}"
+   "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" status || rc=1
+   exit "\$rc"
+   ;;
+ status-full)
+   if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then
+     exec systemctl status $SERVICE --no-pager -l
+   elif command -v rc-service >/dev/null && [[ -f /etc/init.d/$SERVICE ]]; then
+     exec rc-service $SERVICE status
+   else
+     echo 'No supported service manager'
+     exit 1
+   fi
+   ;;
+ logs)
+   if command -v journalctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then
+     exec journalctl -u $SERVICE -n "\${2:-80}" --no-pager
+   else
+     exec tail -n "\${2:-80}" /var/log/$SERVICE.log
+   fi
+   ;;
+ restart)
+   if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then
+     exec systemctl restart $SERVICE
+   else
+     exec rc-service $SERVICE restart
+   fi
+   ;;
+ stop)
+   if command -v systemctl >/dev/null && [[ -f /etc/systemd/system/$SERVICE.service ]]; then
+     exec systemctl stop $SERVICE
+   else
+     exec rc-service $SERVICE stop
+   fi
+   ;;
+ doctor)
+   load_env
+   exec "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" doctor
+   ;;
+ doctor-full)
+   load_env
+   exec "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" doctor --verbose
+   ;;
+ export-status)
+   load_env
+   exec "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" status
+   ;;
+ export-status-json)
+   load_env
+   exec "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" status --json
+   ;;
+ admin-token) cat "$CONFIG_DIR/admin.token";;
+ data-dir) echo "$STATE_DIR/data";;
+ *)
+   echo 'Usage: chatgpt-exportctl {status|status-full|logs [N]|restart|stop|doctor|doctor-full|export-status|export-status-json|admin-token|data-dir}' >&2
+   exit 2
+   ;;
 esac
 CTL
 chmod 755 /usr/local/sbin/chatgpt-exportctl; }
