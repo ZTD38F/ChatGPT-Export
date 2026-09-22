@@ -145,7 +145,7 @@ else
   backup_optional /etc/init.d/$SERVICE openrc.service
   TRANSACTION=1
 
-  release_id="$(date -u +%Y%m%dT%H%M%SZ)-$"
+  release_id="$(date -u +%Y%m%dT%H%M%SZ)-${BASHPID}"
   NEW_RELEASE="$INSTALL_ROOT/releases/$release_id"
   # Create every path component explicitly: umask 077 must never make an
   # intermediate install directory inaccessible to the dedicated service user.
