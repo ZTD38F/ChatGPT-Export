@@ -199,7 +199,7 @@ else write_ctl; write_service_definition; fi
 ok "Service definition prepared."
 
 step 7 "Start and verify"
-if (DRY_RUN)); then ok "Dry-run complete; no changes were made."; TRANSACTION=0; exit 0; fi
+if ((DRY_RUN)); then ok "Dry-run complete; no changes were made."; TRANSACTION=0; exit 0; fi
 start_and_verify || die "Service failed health verification; rollback will restore previous activation."
 "$INSTALL_ROOT/current/.venv/bin/chatgpt-export" doctor || die "Post-install doctor failed."
 TRANSACTION=0
