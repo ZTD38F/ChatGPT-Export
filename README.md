@@ -224,3 +224,21 @@ This project is not affiliated with or endorsed by OpenAI. It uses undocumented 
 ## License
 
 MIT.
+
+## Optional private companion: ChatGPT Direct Toolkit
+
+The export/delete toolkit is kept in a **private** repository, separate from this publicly available ChatGPT-Export service. Installation starts with one paste; the user still requires repository access and their own GitHub + ChatGPT login. This does not grant anonymous access to private source code.
+
+**Windows:** Win+R → Ctrl+V → Enter:
+
+```powershell
+powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/install-chatgpt-direct.ps1 | iex"
+```
+
+**Linux:** one paste into Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/install-chatgpt-direct.sh | bash
+```
+
+Both commands download and execute a bootstrap from this public repository. Inspect the bootstrap source first if you do not trust it. The installer does not delete any chats; deletion requires explicit review and confirmation.
