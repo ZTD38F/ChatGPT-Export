@@ -83,6 +83,28 @@ $("resume").onclick = async () => {
   catch (e) { $("notice").textContent = `ERROR: ${e.message}`; $("notice").className = "notice warning"; }
 };
 
+$("download-personalization").onclick = async () => {
+  try {
+    const res = await fetch("/api/export/personalization", {headers: headers(), cache: "no-store"});
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ("HTTP " + res.status));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ChatGPT_Personalization.zip";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    $("notice").textContent = "DOWNLOAD ERROR: " + e.message;
+    $("notice").className = "notice warning";
+  }
+};
+
 $("disconnect").onclick = async () => {
   try { await api("/api/session", {method:"DELETE"}); $("session").value = ""; await loadStatus(); }
   catch (e) { $("notice").textContent = `ERROR: ${e.message}`; $("notice").className = "notice warning"; }
