@@ -11,6 +11,7 @@ from .inventory import InventoryEngine
 from .models import Workspace
 from .provider import ChatGPTClient, AuthenticationRequired
 from .utils import atomic_write_json
+from .personalization_archive import create_bundle, contains_credential_fields
 
 
 class WorkspaceExporter:
@@ -56,11 +57,26 @@ class WorkspaceExporter:
         atomic_write_json(run_ws / "validation.json", report); return report
 
     async def _account_artifacts(self, client: ChatGPTClient, workspace: Workspace, archive_ws: Path) -> list[dict[str, str]]:
-        errors = []
-        for kind in ("memories", "custom_instructions", "settings", "beta_features"):
-            try: atomic_write_json(archive_ws / "account" / f"{kind}.json", await client.account_artifact(kind, workspace.account_id))
-            except AuthenticationRequired: raise
-            except Exception as exc: errors.append(self._err(kind, exc))
+        errors: list[dict[str, str]] = []
+        successful: dict[str, Any] = {}
+        account_dir = archive_ws / "account"
+        for kind in ("memories", "custom_instructions", "settings", "beta_features", "profile"):
+            try:
+                payload = await client.account_artifact(kind, workspace.account_id)
+                if not isinstance(payload, (dict, list)):
+                    raise ValueError("account artifact returned non-JSON-object/list")
+                if contains_credential_fields(payload):
+                    raise ValueError("account artifact contains a credential-like field")
+                atomic_write_json(account_dir / f"{kind}.json", payload)
+                successful[kind] = payload
+            except AuthenticationRequired:
+                raise
+            except Exception as exc:
+                errors.append(self._err(kind, exc))
+        try:
+            create_bundle(account_dir, workspace.key, successful, errors, workspace.raw)
+        except Exception as exc:
+            errors.append(self._err("personalization_bundle", exc))
         return errors
 
     @staticmethod

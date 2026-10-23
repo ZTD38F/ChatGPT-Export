@@ -43,7 +43,8 @@ class ChatGPTClient:
 
     async def account_artifact(self, kind: str, workspace_id: str | None) -> Any:
         paths = {"memories": "/backend-api/memories?include_memory_entries=true", "custom_instructions": "/backend-api/user_system_messages",
-                 "settings": "/backend-api/settings", "beta_features": "/backend-api/settings/beta_features"}
+                 "settings": "/backend-api/settings/user", "beta_features": "/backend-api/settings/beta_features",
+                 "profile": "/backend-api/profiles/me"}
         if kind not in paths: raise ValueError("invalid artifact kind")
         return (await self.transport.request_json("GET", paths[kind], workspace_id=workspace_id))[0]
 

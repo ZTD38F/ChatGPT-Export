@@ -15,6 +15,7 @@ from .db import Database
 from .exporter import ExportManager
 from .provider import ChatGPTClient, AuthenticationRequired, ProviderError, ProviderHTTPError
 from .security import SecretStore, constant_time_equal, load_admin_token, require_access_token
+from .utils import require_identifier
 
 LOG = logging.getLogger("chatgpt_export")
 
@@ -162,6 +163,31 @@ async def start_export(x_admin_token: str | None = Header(default=None)):
         raise HTTPException(status_code=409, detail="stored session is invalid; import a fresh session") from exc
     job_id = await manager.start(token)
     return {"ok": True, "job_id": job_id}
+
+
+@app.get("/api/export/personalization")
+async def download_personalization(workspace: str | None = None, x_admin_token: str | None = Header(default=None)):
+    """Download only an authenticated personal-settings bundle."""
+    _auth(x_admin_token)
+    root = settings.data_dir / "archive" / "workspaces"
+    if workspace is not None:
+        try:
+            key = require_identifier(workspace, "workspace key")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid workspace key") from exc
+        candidates = [root / key / "account" / "personalization.zip"]
+    else:
+        candidates = list(root.glob("*/account/personalization.zip"))
+    candidates = [p for p in candidates if p.is_file() and not p.is_symlink()]
+    if not candidates:
+        raise HTTPException(status_code=404, detail="no personalization bundle available; run the export first")
+    if len(candidates) != 1:
+        raise HTTPException(status_code=409, detail="multiple workspaces; specify workspace key")
+    chosen = candidates[0]
+    if not chosen.resolve().is_relative_to(root.resolve()):
+        raise HTTPException(status_code=404, detail="invalid bundle path")
+    return FileResponse(chosen, media_type="application/zip",
+                        filename="ChatGPT_Personalization_" + chosen.parent.parent.name + ".zip")
 
 
 @app.delete("/api/session")
