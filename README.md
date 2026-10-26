@@ -236,10 +236,10 @@ The export/delete toolkit is kept in a **private** repository, separate from thi
 3. Press **Enter**.
 
 ```text
-powershell.exe -NoExit -NoProfile -ExecutionPolicy Bypass -EncodedCommand JABFAHIAcgBvAHIAQQBjAHQAaQBvAG4AUAByAGUAZgBlAHIAZQBuAGMAZQA9ACcAUwB0AG8AcAAnADsAJABwAD0ASgBvAGkAbgAtAFAAYQB0AGgAIAAkAGUAbgB2ADoAVABFAE0AUAAgACcAQwBoAGEAdABHAFAAVABEAGkAcgBlAGMAdAAtAGkAbgBzAHQAYQBsAGwALgBwAHMAMQAnADsASQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHMAZQBCAGEAcwBpAGMAUABhAHIAcwBpAG4AZwAgAC0AVQByAGkAIAAnAGgAdAB0AHAAcwA6AC8ALwByAGEAdwAuAGcAaQB0AGgAdQBiAHUAcwBlAHIAYwBvAG4AdABlAG4AdAAuAGMAbwBtAC8AWgBUAEQAMwA4AEYALwBDAGgAYQB0AEcAUABUAC0ARQB4AHAAbwByAHQALwBtAGEAaQBuAC8AaQBuAHMAdABhAGwAbAAtAGMAaABhAHQAZwBwAHQALQBkAGkAcgBlAGMAdAAuAHAAcwAxACcAIAAtAE8AdQB0AEYAaQBsAGUAIAAkAHAAOwAmACAAJABwAA==
+powershell.exe -NoExit -NoProfile -Command "$p=Join-Path $env:TEMP 'ChatGPTDirect-install.ps1'; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/install-chatgpt-direct.ps1' -OutFile $p; & $p"
 ```
 
-The Windows launcher saves the public HTTPS bootstrap as a local `.ps1` file and runs that file. It does **not** use `irm | iex` or dynamically evaluate fetched source text. `-EncodedCommand` is UTF-16LE command-line quoting, not a trust or integrity guarantee; inspect the linked bootstrap before trusting it. Windows policy restrictions still apply.
+The Windows launcher downloads the visible public HTTPS source to a local `.ps1` file before running it. The preferred future UX is a short Cloudflare Pages installer link after verified account ownership, deployment and HTTP/E2E checks. Until then, the canonical source is [install-chatgpt-direct.ps1](https://github.com/ZTD38F/ChatGPT-Export/blob/main/install-chatgpt-direct.ps1). Review it before execution; some managed Windows environments may prohibit script execution.
 
 **Linux:** one paste into Terminal:
 
